@@ -1,0 +1,10 @@
+pyspark==3.5.4
+pandas
+matplotlib
+seaborn
+jupyter
+kaggle
+black
+flake8
+isort
+nbqa
