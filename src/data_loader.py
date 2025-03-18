@@ -1,16 +1,15 @@
-"""Data loading utilities for football match data."""
-
 from typing import Optional
 from pyspark.sql import SparkSession, DataFrame
 import pyspark.sql.functions as F
+import pandas as pd
 import os
-from config import ELO_RATINGS_PATH, MATCHES_OUTPUT_DIR, MATCHES_PATH, SPARK_MASTER
+from config import ELO_RATINGS_PATH, EXPERIMENT_RESULTS_PATH, MATCHES_OUTPUT_DIR, MATCHES_PATH, SPARK_MASTER
 from utils import time_execution
 
 
 def get_data_path(path: str, local_path: Optional[bool] = None):
     # For local development vs. cluster deployment
-    base_path = "" if (local_path is None and SPARK_MASTER == "local[*]") or local_path else "hdfs://192.168.2.251:9000"
+    base_path = "" if (local_path is None and SPARK_MASTER == "local[*]") or local_path else SPARK_MASTER
     return os.path.join(base_path, path)
 
 
@@ -58,3 +57,11 @@ def write_parquet_data(matches_transformed_df: DataFrame) -> None:
     matches_transformed_df.write.partitionBy("Country", "League").mode("overwrite").parquet(
         get_data_path(MATCHES_OUTPUT_DIR)
     )
+
+
+def write_experiment_results(results_df: pd.DataFrame) -> None:
+    results_df.to_csv(EXPERIMENT_RESULTS_PATH, index=False)
+
+
+def read_experiment_results() -> pd.DataFrame:
+    return pd.read_csv(EXPERIMENT_RESULTS_PATH)

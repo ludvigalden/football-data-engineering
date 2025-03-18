@@ -10,68 +10,6 @@ The football analytics landscape has evolved significantly over the past decade.
 
 While previous research has explored various aspects of football prediction using similar datasets, these efforts have often been limited by computational constraints when handling large-scale historical data. For example, Hubáček et al. (2019) achieved 52.5% accuracy in predicting match outcomes using ensemble methods, but their approach was limited to a single league and struggled with scaling to multiple competitions simultaneously.
 
-## Implementation Details
-
-### Data Processing Pipeline
-
-Our implementation follows a modular approach with clearly defined stages:
-
-1. **Data Loading**: We load match data and ELO ratings from CSV files using Spark's DataFrame API.
-
-2. **Data Transformation**: 
-   - Convert raw data to Parquet format for better performance
-   - Clean and standardize column names
-   - Handle missing values through appropriate imputation strategies
-   - Partition data by country and league for efficient queries
-
-3. **Feature Engineering**:
-   - Calculate team form metrics based on historical performance
-   - Derive ELO rating differentials between teams
-   - Generate features that capture team strength and recent performance
-
-4. **Model Training**:
-   - Prepare features for machine learning
-   - Train a logistic regression model to predict match outcomes
-   - Evaluate model performance across different leagues
-
-5. **Scalability Testing**:
-   - Benchmark processing time with varying computational resources
-   - Analyze the relationship between cores and execution time
-   - Identify bottlenecks in the processing pipeline
-
-### Key Technical Features
-
-- **Distributed Processing**: Leverages Spark's distributed computing capabilities
-- **Efficient Storage**: Uses Parquet format with appropriate partitioning
-- **Modular Design**: Separates concerns into reusable Python modules
-- **Performance Optimization**: Implements caching and join optimizations
-- **Scalability Analysis**: Provides quantitative measures of horizontal scaling
-
-## Project Structure
-
-- **/.devcontainer/** - Development container configuration for consistent environment setup
-
-- **/data/** - Contains source data files and processed outputs
-  - **/data/ELO_RATINGS.csv** - Team strength ratings captured bi-monthly
-  - **/data/MATCHES.csv** - Match data including results and team performance
-  - **/data/processed/** - Directory for transformed Parquet data
-
-- **/notebooks/** - Jupyter notebooks demonstrating the data pipeline workflow
-  - **/notebooks/01_data_exploration.ipynb** - Initial exploration of dataset structure and characteristics
-  - **/notebooks/02_data_transformation.ipynb** - Data cleaning and conversion to Parquet format
-  - **/notebooks/03_feature_engineering.ipynb** - Creation of features for match prediction
-  - **/notebooks/04_model_training.ipynb** - Implementation of a logistic regression model
-  - **/notebooks/05_scalability_testing.ipynb** - Performance benchmarking with varying resources
-
-- **/src/** - Core Python modules implementing the data processing pipeline
-  - **/src/config.py** - Configuration parameters for Spark and data paths
-  - **/src/data_loader.py** - Utilities for loading and saving data
-  - **/src/data_transformer.py** - Functions for cleaning and transforming match data
-  - **/src/feature_engineering.py** - Functions for generating prediction features
-  - **/src/ml.py** - Implementation of the match outcome prediction model
-  - **/src/spark_session.py** - Utilities for creating and configuring Spark sessions
-  - **/src/utils.py** - Helper functions for timing execution and visualization
-
 ## Development
 
 ### Using VS Code Dev Container
@@ -128,35 +66,49 @@ Our selected dataset, "Club Football Match Data (2000-2025)," which can be retri
 
 The CSV format is widely used for its simplicity and compatibility but presents several challenges for distributed processing: Lack of native compression, no schema enforcement, inefficient for columnar analytics, and poor partitioning support. For our Spark-based solution, we'll instead convert the CSV data to Parquet format, which offers: column-oriented storage with efficient compression, schema enforcement and evolution, predicate pushdown for faster filtering, and native support for partitioning. This aligns with best practices for data engineering pipelines, allowing us to optimize storage and query performance while maintaining compatibility with our Spark-based analytics framework.
 
-# Computational Experiments
+## Computational Experiments
 
-Our computational experiments focus on demonstrating a scalable data processing pipeline using Apache Spark, with an emphasis on horizontal scalability and efficient data transformations.
+Our computational experiments demonstrate a data processing pipeline using Apache Spark, focusing on horizontal scalability, data transformations, and resource utilization analysis. The architecture consists of data ingestion, transformation, feature engineering, and analysis layers, though our implementation is relatively straightforward compared to enterprise-scale systems.
 
-## 3.1 Architecture Overview
+We implemented a basic prediction system for football match outcomes using Spark's DataFrame API and MLlib. The pipeline converts CSV data to Parquet format, achieving approximately 70% storage reduction and a 66x speedup in read performance. This dramatic improvement underscores the importance of appropriate data format selection for analytical workloads, as Parquet's columnar storage with compression significantly outperforms row-based CSV files.
 
-We'll implement a data processing pipeline with four main components:
+Our partitioning strategy organizes data by country and league, creating 19 country partitions and 29 league partitions. This enables more efficient filtering when querying specific competitions, though the overall dataset size (approximately 45MB) means partitioning benefits are modest compared to what would be seen with truly large-scale data.
 
-**Data Ingestion & Transformation Layer**: Load CSV data and convert to Parquet format. Partition data by league and season. Apply schema validation and data cleaning.
+For our scalability tests, we systematically varied executor memory (1g-16g), driver memory (1g-16g), and core count (1-8) to identify how resource allocation affects processing performance. We implemented and compared two prediction approaches: logistic regression and gradient-boosted trees (GBT). Our experiments reveal several interesting patterns in how these resources affect training time, as shown in the plots below:
 
-**Feature Engineering Layer**: Create team performance metrics (form, goal differentials). Calculate statistical features from historical match data. Generate time-based aggregations (rolling averages).
+![Training time across different resource configurations](plots/training_time.png)
 
-**Analysis Layer**: Implement a simple prediction model for match outcomes. Calculate prediction accuracy across different leagues
+The first plot shows training time versus executor memory size, the second shows training time versus driver memory size, and the third shows training time versus number of cores. Each plot displays results for both logistic regression (blue) and GBT (red) models.
 
-**Scalability Testing Layer**: Benchmark processing time with varying cluster sizes: Measure resource utilization across data transformations
+We also measured prediction accuracy across different resource configurations, though as expected, changing computational resources did not affect model accuracy:
 
-## 3.2 Implementation Details
+![Accuracy across different resource configurations](plots/accuracy.png)
 
-Our implementation leverages Spark's DataFrame API for structured data processing and SQL for analytical queries. We'll utilize Spark's built-in machine learning library (MLlib) for the prediction component. This involves partitioning strategies to optimize parallel processing, caching intermediate results to minimize redundant computations, broadcast joins for efficient processing of dimension tables, and dynamic resource allocation to adapt to workload changes
+## Analysis
 
-## 3.3 Scalability Experiments
+Our experiments reveal several unexpected insights about the scalability characteristics of our Spark-based football data processing pipeline. Most notably, we observed that simply increasing computational resources did not consistently improve performance—in fact, it often degraded it.
 
-To demonstrate horizontal scalability, we'll conduct the following experiments:
+For both logistic regression and GBT models, we found that increasing memory allocation from 1g to 2g yielded performance improvements, but further increases showed diminishing or even negative returns. In the mid-range memory allocations (4g-10g), performance fluctuated unpredictably, while larger allocations (10g-16g) sometimes led to longer processing times. This counter-intuitive behavior likely stems from increased garbage collection overhead and memory management complexity when excessive resources are allocated to a relatively small dataset.
 
-**Data Processing Scalability:** Measure processing time for the entire pipeline with 1, 2, and 4 executor cores. Compare memory usage across different configurations. Evaluate the impact of data partitioning on performance.
+Even more surprising were our findings regarding core count scaling. Performance improved when scaling from 1 to 2 cores, but beyond that, processing time generally increased with additional cores. With 8 cores, training time was actually longer than with a single core. This clearly demonstrates that for our dataset—which is relatively small at 45MB—the overhead of task distribution and coordination outweighs the benefits of parallel processing beyond a certain point. This is a textbook example of the "small data problem" where distributed computing introduces more overhead than benefit.
 
-**Query Performance**: Benchmark complex analytical queries with varying data volumes. Measure the impact of caching on query latency. Compare execution plans for optimized vs. non-optimized queries.
+The choice of machine learning algorithm significantly impacted processing time, with GBT models consistently requiring approximately 4.5 times longer training time than logistic regression across all resource configurations. This difference remained consistent regardless of the resource allocation, highlighting that algorithm complexity is a major factor in computational requirements.
 
-**Resource Utilization**. Monitor CPU, memory, and I/O metrics during processing. Identify bottlenecks in the processing pipeline. Optimize resource allocation based on workload characteristics.
+Despite controlled experimental conditions, we observed non-deterministic performance patterns, particularly in mid-range resource configurations. This highlights the complexity of Spark's resource management and task scheduling mechanisms, which involve numerous internal optimizations and trade-offs that aren't always transparent to the user.
+
+## Implications
+
+The findings from our computational experiments have important implications for designing data engineering pipelines, particularly when working with small to medium-sized datasets. Most significantly, our results challenge the common assumption that "more is better" when it comes to computational resources. For our dataset, the optimal configuration was modest: 2 cores with 2-4g of memory for both executor and driver. This right-sizing of resources is crucial not only for performance but also for cost-efficiency in cloud environments where resources are billed by usage.
+
+The dramatic performance improvement achieved by converting from CSV to Parquet format (66x speedup) reinforces the critical importance of storage format selection in data engineering pipelines. While this is a well-known best practice, seeing such a significant improvement with a relatively small dataset emphasizes that format optimization should be one of the first considerations in any data pipeline design, regardless of scale.
+
+Our experience with diminishing or negative returns when scaling beyond certain resource thresholds highlights an important consideration for distributed computing: there exists a "sweet spot" where the benefits of parallelization are maximized relative to the overhead it introduces. For small to medium-sized datasets like ours, highly distributed processing may actually be counterproductive. This suggests that data engineers should consider data size thresholds when deciding between single-node and distributed processing approaches.
+
+The consistent performance difference between logistic regression and GBT models reminds us that algorithm selection has significant implications for computational requirements. In production environments where real-time or near-real-time processing is needed, simpler algorithms may be preferable even if they offer marginally lower accuracy.
+
+While our experiments were conducted on a relatively small dataset, the insights gained are valuable for understanding how Spark behaves under different configurations. In real-world scenarios with truly large datasets (terabytes or petabytes), we would expect different scaling patterns, likely with more consistent benefits from increased parallelization and memory allocation. However, the principle of finding the right balance between resources and workload remains universally applicable.
+
+These findings demonstrate that effective data engineering requires not just technical implementation skills, but also a nuanced understanding of how distributed systems behave under different workloads and resource configurations. By systematically testing and measuring performance across various configurations, data engineers can optimize both performance and resource utilization, leading to more efficient and cost-effective data processing pipelines.
 
 ## References
 

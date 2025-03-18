@@ -9,8 +9,10 @@
         }
     },
     "postCreateCommand": "pip install -r requirements.txt && python -m ipykernel install --user --name=projectkernel --display-name='Project Kernel'",
-    "postStartCommand": "sudo apt-get update && sudo apt-get install -y libsnappy-dev && mkdir -p /tmp/hadoop-native && cd /tmp/hadoop-native && wget https://archive.apache.org/dist/hadoop/common/hadoop-3.3.4/hadoop-3.3.4.tar.gz && tar -xzf hadoop-3.3.4.tar.gz && sudo mkdir -p /usr/local/hadoop/lib/native && sudo cp -R hadoop-3.3.4/lib/native/* /usr/local/hadoop/lib/native/ && rm -rf /tmp/hadoop-native",
-    "containerEnv": { "PYSPARK_PYTHON": "python3", "PYSPARK_DRIVER_PYTHON": "python3" },
+    "containerEnv": {
+        "PYSPARK_PYTHON": "python3",
+        "PYSPARK_DRIVER_PYTHON": "python3"
+    },
     "customizations": {
         "vscode": {
             "extensions": [

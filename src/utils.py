@@ -1,24 +1,34 @@
 """Utility functions for the project."""
 
 import time
-from typing import TypeVar, Callable, Any, Tuple
+from typing import Tuple, TypeVar, Callable, Any
 import matplotlib.pyplot as plt
 from pyspark.sql import DataFrame
 import pyspark.sql.functions as F
+import functools
 
 
 T = TypeVar("T")
 
 
 def time_execution(func: Callable[..., T]) -> Callable[..., Tuple[T, float]]:
-    """Decorator to measure execution time of a function."""
+    """
+    Decorator to measure execution time of a function.
+    Always returns (result, execution_time).
+    Only logs the execution time when log_time=True (defaults to False).
+    """
 
+    @functools.wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> Tuple[T, float]:
+        log_time = kwargs.pop("log_time", False)
+
         start_time = time.time()
         result = func(*args, **kwargs)
-        end_time = time.time()
-        execution_time = end_time - start_time
-        print(f"Execution time for {func.__name__}: {execution_time:.2f} seconds")
+        execution_time = time.time() - start_time
+
+        if log_time:
+            print(f"Execution time for {func.__name__}: {execution_time:.2f} seconds")
+
         return result, execution_time
 
     return wrapper
